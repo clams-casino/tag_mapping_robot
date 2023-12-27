@@ -1,0 +1,12 @@
+pose_graph_path: /home/rsl_admin/lab_datasets/19-11-2023/pose_graph_inflation-0.0
+# pose_graph_path: /home/rsl_admin/lab_datasets/19-11-2023/pose_graph_inflation-0.2
+
+odom_frame_name: odom
+map_frame_name: map
+tag_map_frame_name: tag_map
+
+odom_sub_topic: /state_estimator/pose_in_odom
+goal_sub_topic: /tag_map_waypoint
+waypoint_pub_topic: /mp_waypoint
+
+reached_waypoint_tolerance: 0.1
