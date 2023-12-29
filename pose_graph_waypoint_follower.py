@@ -173,6 +173,9 @@ class PoseGraphWaypointFollower:
         if not hasattr(self, "current_waypoint_tag_map"):
             return
 
+        if self.goal_reached:
+            return
+
         if (
             np.linalg.norm(
                 (self.current_loc_tag_map - self.current_waypoint_tag_map)[:2] # only consider distance in x and y
@@ -185,11 +188,8 @@ class PoseGraphWaypointFollower:
 
             self.current_waypoint_tag_map = self.waypoint_buffer.get_next_waypoint()
             if self.current_waypoint_tag_map is None:
-                if self.goal_reached:
-                    return
-                else:
-                    rospy.loginfo("Reached goal")
-                    self.goal_reached = True
+                rospy.loginfo("Reached goal")
+                self.goal_reached = True
             else:
                 rospy.loginfo("Reached current waypoint, publishing next waypoint")
                 self.publish_current_waypoint()
