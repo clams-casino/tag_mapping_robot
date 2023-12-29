@@ -9,4 +9,4 @@ odom_sub_topic: /state_estimator/pose_in_odom
 goal_sub_topic: /tag_map_waypoint
 waypoint_pub_topic: /mp_waypoint
 
-reached_waypoint_tolerance: 0.1
+reached_waypoint_tolerance: 0.2
