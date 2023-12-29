@@ -5,7 +5,7 @@ import yaml
 
 import rospy
 import tf
-from geometry_msgs.msg import PointStamped, PoseStamped
+from geometry_msgs.msg import PointStamped, PoseWithCovarianceStamped
 from visualization_msgs.msg import Marker, MarkerArray
 
 from pose_graph import PoseGraph
@@ -77,6 +77,9 @@ class PoseGraphWaypointFollower:
             self.tf_listener, self.odom_frame, self.map_frame, wait_duration=5.0
         )
 
+        self.tag_map_to_odom_mat = self.map_to_odom_mat @ self.tag_map_to_map_mat
+        self.odom_to_tag_map_mat = np.linalg.inv(self.tag_map_to_odom_mat)
+
         # ROS timer which updates the transform from map to odom frame
         self.update_map_to_odom_timer = rospy.Timer(
             rospy.Duration(0.5), self.update_map_to_odom
@@ -84,10 +87,13 @@ class PoseGraphWaypointFollower:
 
         # ROS subscribers and publishers
         self.odom_sub = rospy.Subscriber(
-            params["odom_sub_topic"], PoseStamped, self.odom_callback
+            params["odom_sub_topic"],
+            PoseWithCovarianceStamped,
+            self.odom_callback,
+            queue_size=1,
         )
         self.goal_sub = rospy.Subscriber(
-            params["goal_sub_topic"], PointStamped, self.goal_callback
+            params["goal_sub_topic"], PointStamped, self.goal_callback, queue_size=1
         )
 
         self.current_waypoint_pub = rospy.Publisher(
@@ -103,7 +109,7 @@ class PoseGraphWaypointFollower:
     def update_map_to_odom(self, event):
         try:
             self.map_to_odom_mat = lookupLatestTFMat(
-                self.tf_listener, self.odom_frame, self.map_frame, wait_duration=0.1
+                self.tf_listener, self.odom_frame, self.map_frame, wait_duration=0.01
             )
         except Exception as e:
             rospy.logwarn(
@@ -115,9 +121,11 @@ class PoseGraphWaypointFollower:
 
         self.tag_map_to_odom_mat = self.map_to_odom_mat @ self.tag_map_to_map_mat
         self.odom_to_tag_map_mat = np.linalg.inv(self.tag_map_to_odom_mat)
-        self.publish_current_waypoint()
 
-    def goal_callback(self, msg):
+        if not self.goal_reached:
+            self.publish_current_waypoint()
+
+    def goal_callback(self, msg: PointStamped):
         if not hasattr(self, "current_loc_tag_map"):
             rospy.logwarn("Received goal before receiving current location")
             return
@@ -142,20 +150,23 @@ class PoseGraphWaypointFollower:
         rospy.loginfo(
             f"Computed path with the following waypoints in the tag map frame:\n"
         )
-        for i, waypoint in enumerate(self.waypoints_tag_map):
+        for i, waypoint in enumerate(waypoints_tag_map):
             rospy.loginfo(f"{i}: {waypoint[0]:.2f} {waypoint[1]:.2f} {waypoint[2]:.2f}")
+        self.clear_waypoint_markers()
         self.publish_waypoint_markers(waypoints_tag_map)
 
-    def odom_callback(self, msg):
+    def odom_callback(self, msg: PoseWithCovarianceStamped):
         assert (
             msg.header.frame_id == self.odom_frame
         ), f"odom_callback received message with frame_id {msg.header.frame_id}, expected {self.odom_frame}"
 
-        if not hasattr(self, "odom_to_tag_map_mat"):
-            return
-
         loc_odom = np.array(
-            [msg.pose.position.x, msg.pose.position.y, msg.pose.position.z, 1]
+            [
+                msg.pose.pose.position.x,
+                msg.pose.pose.position.y,
+                msg.pose.pose.position.z,
+                1,
+            ]
         )
         self.current_loc_tag_map = (self.odom_to_tag_map_mat @ loc_odom)[:3]
 
@@ -163,11 +174,17 @@ class PoseGraphWaypointFollower:
             return
 
         if (
-            np.linalg.norm(self.current_loc_tag_map - self.current_waypoint_tag_map)
+            np.linalg.norm(
+                (self.current_loc_tag_map - self.current_waypoint_tag_map)[:2] # only consider distance in x and y
+            )
             < self.params["reached_waypoint_tolerance"]
         ):
+            # remove the reached waypoint marker from rviz
+            self.clear_waypoint_markers()
+            self.publish_waypoint_markers(self.waypoint_buffer.waypoints)
+
             self.current_waypoint_tag_map = self.waypoint_buffer.get_next_waypoint()
-            if self.current_waypoint_tag_map == None:
+            if self.current_waypoint_tag_map is None:
                 if self.goal_reached:
                     return
                 else:
@@ -182,7 +199,14 @@ class PoseGraphWaypointFollower:
             rospy.logwarn("No current waypoint to publish")
             return
 
-        waypoint_odom = self.tag_map_to_odom_mat @ self.current_waypoint_tag_map
+        waypoint_odom = self.tag_map_to_odom_mat @ np.array(
+            [
+                self.current_waypoint_tag_map[0],
+                self.current_waypoint_tag_map[1],
+                self.current_waypoint_tag_map[2],
+                1,
+            ]
+        )
         point_stamped_msg = PointStamped()
         point_stamped_msg.header.stamp = rospy.Time.now()
         point_stamped_msg.header.frame_id = self.odom_frame
@@ -214,6 +238,18 @@ class PoseGraphWaypointFollower:
             marker_msg.color.g = 1.0
             marker_msg.color.b = 0.0
             marker_array_msg.markers.append(marker_msg)
+        self.waypoint_markers_pub.publish(marker_array_msg)
+
+    def clear_waypoint_markers(self):
+        marker_array_msg = MarkerArray()
+        stamp = rospy.Time.now()
+        marker_msg = Marker()
+        marker_msg.header.frame_id = self.tag_map_frame
+        marker_msg.header.stamp = stamp
+        marker_msg.ns = "waypoints"
+        marker_msg.id = 0
+        marker_msg.action = Marker.DELETEALL
+        marker_array_msg.markers.append(marker_msg)
         self.waypoint_markers_pub.publish(marker_array_msg)
 
 
