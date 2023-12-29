@@ -122,8 +122,7 @@ class PoseGraphWaypointFollower:
         self.tag_map_to_odom_mat = self.map_to_odom_mat @ self.tag_map_to_map_mat
         self.odom_to_tag_map_mat = np.linalg.inv(self.tag_map_to_odom_mat)
 
-        if not self.goal_reached:
-            self.publish_current_waypoint()
+        self.publish_current_waypoint()
 
     def goal_callback(self, msg: PointStamped):
         if not hasattr(self, "current_loc_tag_map"):
@@ -197,6 +196,9 @@ class PoseGraphWaypointFollower:
     def publish_current_waypoint(self):
         if not hasattr(self, "current_waypoint_tag_map"):
             rospy.logwarn("No current waypoint to publish")
+            return
+
+        if self.goal_reached:
             return
 
         waypoint_odom = self.tag_map_to_odom_mat @ np.array(
