@@ -139,8 +139,13 @@ class PoseGraphWaypointFollower:
 
         path = self.pose_graph.shortest_path(start_node, nearest_goal_node)
 
-        waypoints_tag_map = self.pose_graph.nodes[path].tolist()
-        waypoints_tag_map.append(goal_tag_map)
+        if len(path) == 1:
+            # If the nearest node in the pose graph is the same for the start and goal,
+            # then we might as well just go straight to the goal
+            # We know for sure that the free space connectivity of the pose graph does not help here
+            waypoints_tag_map = [goal_tag_map]
+        else:
+            waypoints_tag_map = self.pose_graph.nodes[path].tolist() + [goal_tag_map]
         self.waypoint_buffer = WaypointBuffer(waypoints_tag_map)
 
         self.current_waypoint_tag_map = self.waypoint_buffer.get_next_waypoint()
