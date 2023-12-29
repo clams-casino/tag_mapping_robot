@@ -101,7 +101,7 @@ class PoseGraphWaypointFollower:
         )
 
         self.waypoint_markers_pub = rospy.Publisher(
-            "/waypoint_markers", MarkerArray, queue_size=1
+            params["waypoint_marker_pub_topic"], MarkerArray, queue_size=1
         )
 
         rospy.loginfo("Started pose graph waypoint follower")
