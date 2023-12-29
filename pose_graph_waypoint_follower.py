@@ -11,10 +11,10 @@ from visualization_msgs.msg import Marker, MarkerArray
 from pose_graph import PoseGraph
 
 
-def lookupLatestTFMat(listener, target_frame, source_frame, wait_duration=0.5):
+def lookupLatestTFMat(listener, target_frame, source_frame, wait_duration):
     try:
         listener.waitForTransform(
-            target_frame, source_frame, rospy.Time(), rospy.Duration(wait_duration)
+            target_frame, source_frame, rospy.Time(0), rospy.Duration(wait_duration)
         )
 
         trans, quat = listener.lookupTransform(
@@ -70,11 +70,11 @@ class PoseGraphWaypointFollower:
         self.tf_listener = tf.TransformListener()
 
         self.tag_map_to_map_mat = lookupLatestTFMat(
-            self.tf_listener, self.map_frame, self.tag_map_frame
+            self.tf_listener, self.map_frame, self.tag_map_frame, wait_duration=5.0
         )
 
         self.map_to_odom_mat = lookupLatestTFMat(
-            self.tf_listener, self.odom_frame, self.map_frame
+            self.tf_listener, self.odom_frame, self.map_frame, wait_duration=5.0
         )
 
         # ROS timer which updates the transform from map to odom frame
