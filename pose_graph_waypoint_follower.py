@@ -1,7 +1,8 @@
 #!/usr/bin/python3
 
-import numpy as np
+import argparse
 import yaml
+import numpy as np
 
 import rospy
 import tf
@@ -261,15 +262,13 @@ class PoseGraphWaypointFollower:
 
 
 if __name__ == "__main__":
-    rospy.init_node("pose_graph_waypoint_follower")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--params_path", type=str, required=True)
+    args = parser.parse_args()
 
-    PARAMS_PATH = (
-        "/home/rsl_admin/tag_mapping_robot/config/waypoint_follower_params.yaml"
-    )
-
-    with open(PARAMS_PATH, "r") as f:
+    with open(args.params_path, "r") as f:
         params = yaml.safe_load(f)
 
+    rospy.init_node("pose_graph_waypoint_follower")
     wp_transformer = PoseGraphWaypointFollower(params)
-
     rospy.spin()
