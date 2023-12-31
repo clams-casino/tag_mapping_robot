@@ -6,8 +6,15 @@ import numpy as np
 
 import rospy
 import tf
-from geometry_msgs.msg import PointStamped, PoseStamped, PoseWithCovarianceStamped
+from ros_numpy.point_cloud2 import array_to_pointcloud2
+from geometry_msgs.msg import (
+    PointStamped,
+    PoseStamped,
+    PoseWithCovarianceStamped,
+    PointCloud2,
+)
 from nav_msgs.msg import Path
+from sensor_msgs.msg import PointCloud2
 
 from pose_graph import PoseGraph
 
@@ -86,6 +93,11 @@ class PoseGraphWaypointFollower:
             rospy.Duration(0.5), self.update_map_to_odom
         )
 
+        # ROS timer which refreshes pose graph node visualization
+        self.update_pose_graph_nodes_viz_timer = rospy.Timer(
+            rospy.Duration(2.0), self.refresh_pose_graph_nodes_viz
+        )
+
         # ROS subscribers and publishers
         self.odom_sub = rospy.Subscriber(
             params["odom_sub_topic"],
@@ -103,6 +115,10 @@ class PoseGraphWaypointFollower:
 
         self.waypoint_path_viz_pub = rospy.Publisher(
             params["waypoint_path_viz_pub_topic"], Path, queue_size=1
+        )
+
+        self.pose_graph_nodes_viz_pub = rospy.Publisher(
+            params["pose_graph_nodes_viz_pub_topic"], PointCloud2, queue_size=1
         )
 
         rospy.loginfo("Started pose graph waypoint follower")
@@ -235,6 +251,15 @@ class PoseGraphWaypointFollower:
             pose_msg.pose.position.z = wp[2]
             path_msg.poses.append(pose_msg)
         self.waypoint_path_viz_pub.publish(path_msg)
+
+    def refresh_pose_graph_nodes_viz(self, event):
+        self.pose_graph_nodes_viz_pub.publish(
+            array_to_pointcloud2(
+                self.pose_graph.nodes,
+                stamp=rospy.Time.now(),
+                frame_id=self.tag_map_frame,
+            )
+        )
 
 
 if __name__ == "__main__":

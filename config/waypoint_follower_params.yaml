@@ -10,5 +10,6 @@ goal_sub_topic: /tag_map_waypoint
 waypoint_pub_topic: /mp_waypoint
 
 waypoint_path_viz_pub_topic: /pose_graph_waypoints_path
+pose_graph_nodes_viz_pub_topic: /pose_graph_nodes
 
 reached_waypoint_tolerance: 0.2
