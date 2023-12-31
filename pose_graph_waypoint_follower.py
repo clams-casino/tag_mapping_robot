@@ -108,6 +108,12 @@ class PoseGraphWaypointFollower:
         self.goal_sub = rospy.Subscriber(
             params["goal_sub_topic"], PointStamped, self.goal_callback, queue_size=1
         )
+        self.rviz_nav_goal_sub = rospy.Subscriber(
+            params["rviz_nav_goal_sub"],
+            PoseStamped,
+            self.rviz_nav_goal_callback,
+            queue_size=1,
+        )
 
         self.current_waypoint_pub = rospy.Publisher(
             params["waypoint_pub_topic"], PointStamped, queue_size=1
@@ -116,7 +122,6 @@ class PoseGraphWaypointFollower:
         self.waypoint_path_viz_pub = rospy.Publisher(
             params["waypoint_path_viz_pub_topic"], Path, queue_size=1
         )
-
         self.pose_graph_nodes_viz_pub = rospy.Publisher(
             params["pose_graph_nodes_viz_pub_topic"], PointCloud2, queue_size=1
         )
@@ -156,6 +161,28 @@ class PoseGraphWaypointFollower:
         goal_tag_map = np.array([msg.point.x, msg.point.y, msg.point.z])
         rospy.loginfo(
             f"Received new goal at {goal_tag_map[0]:.2f} {goal_tag_map[1]:.2f} {goal_tag_map[2]:.2f}"
+        )
+        self.set_goal(goal_tag_map)
+
+    def rviz_nav_goal_callback(self, msg: PoseStamped):
+        if not msg.header.frame_id == self.odom_frame:
+            rospy.logwarn(
+                f"rviz_nav_goal_callback received message with frame_id {msg.header.frame_id}, expected {self.odom_frame}"
+            )
+            return
+
+        goal_odom = np.array(
+            [
+                msg.pose.position.x,
+                msg.pose.position.y,
+                msg.pose.position.z,
+                1,
+            ]
+        )
+        goal_tag_map = (self.odom_to_tag_map_mat @ goal_odom)[:3]
+
+        rospy.loginfo(
+            f"Received new goal from RViz at {goal_tag_map[0]:.2f} {goal_tag_map[1]:.2f} {goal_tag_map[2]:.2f}"
         )
         self.set_goal(goal_tag_map)
 

@@ -6,8 +6,10 @@ map_frame_name: map
 tag_map_frame_name: tag_map
 
 odom_sub_topic: /state_estimator/pose_in_odom
-goal_sub_topic: /tag_map_waypoint
 waypoint_pub_topic: /mp_waypoint
+
+goal_sub_topic: /tag_map_waypoint
+rviz_nav_goal_sub: /goal
 
 waypoint_path_viz_pub_topic: /pose_graph_waypoints_path
 pose_graph_nodes_viz_pub_topic: /pose_graph_nodes
