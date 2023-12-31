@@ -14,4 +14,4 @@ rviz_nav_goal_sub: /goal
 waypoint_path_viz_pub_topic: /pose_graph_waypoints_path
 pose_graph_nodes_viz_pub_topic: /pose_graph_nodes
 
-reached_waypoint_tolerance: 0.2
+reached_waypoint_tolerance: 0.5
