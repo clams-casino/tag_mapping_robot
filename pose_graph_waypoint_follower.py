@@ -6,8 +6,8 @@ import numpy as np
 
 import rospy
 import tf
-from geometry_msgs.msg import PointStamped, PoseWithCovarianceStamped
-from visualization_msgs.msg import Marker, MarkerArray
+from geometry_msgs.msg import PointStamped, PoseStamped, PoseWithCovarianceStamped
+from nav_msgs.msg import Path
 
 from pose_graph import PoseGraph
 
@@ -101,8 +101,8 @@ class PoseGraphWaypointFollower:
             params["waypoint_pub_topic"], PointStamped, queue_size=1
         )
 
-        self.waypoint_markers_pub = rospy.Publisher(
-            params["waypoint_marker_pub_topic"], MarkerArray, queue_size=1
+        self.waypoint_path_viz_pub = rospy.Publisher(
+            params["waypoint_path_viz_pub_topic"], Path, queue_size=1
         )
 
         rospy.loginfo("Started pose graph waypoint follower")
@@ -111,7 +111,7 @@ class PoseGraphWaypointFollower:
         if not hasattr(self, "current_loc_tag_map"):
             rospy.logwarn("Cannot set goal before receiving current location")
             return
-        
+
         nearest_goal_node = self.pose_graph.closest_node(goal_tag_map)
         start_node = self.pose_graph.closest_node(self.current_loc_tag_map)
 
@@ -134,8 +134,7 @@ class PoseGraphWaypointFollower:
         )
         for i, waypoint in enumerate(waypoints_tag_map):
             rospy.loginfo(f"{i}: {waypoint[0]:.2f} {waypoint[1]:.2f} {waypoint[2]:.2f}")
-        self.clear_waypoint_markers()
-        self.publish_waypoint_markers(waypoints_tag_map)
+        self.publish_waypoints_path_viz(waypoints_tag_map)
 
     def goal_callback(self, msg: PointStamped):
         goal_tag_map = np.array([msg.point.x, msg.point.y, msg.point.z])
@@ -170,9 +169,8 @@ class PoseGraphWaypointFollower:
             (self.current_loc_tag_map - self.current_waypoint_tag_map)[:2]
         )
         if dist_to_current_waypoint < self.params["reached_waypoint_tolerance"]:
-            # remove the reached waypoint marker from rviz
-            self.clear_waypoint_markers()
-            self.publish_waypoint_markers(self.waypoint_buffer.waypoints)
+            # update the waypoint path visualization
+            self.publish_waypoints_path_viz(self.waypoint_buffer.waypoints)
 
             self.current_waypoint_tag_map = self.waypoint_buffer.get_next_waypoint()
             if self.current_waypoint_tag_map is None:
@@ -224,42 +222,19 @@ class PoseGraphWaypointFollower:
         point_stamped_msg.point.z = waypoint_odom[2]
         self.current_waypoint_pub.publish(point_stamped_msg)
 
-    def publish_waypoint_markers(self, waypoints_tag_map):
-        marker_array_msg = MarkerArray()
-        stamp = rospy.Time.now()
+    def publish_waypoints_path_viz(self, waypoints_tag_map):
+        path_msg = Path()
+        path_msg.header.frame_id = self.tag_map_frame
+        path_msg.header.stamp = rospy.Time.now()
         for i, wp in enumerate(waypoints_tag_map):
-            marker_msg = Marker()
-            marker_msg.header.frame_id = self.tag_map_frame
-            marker_msg.header.stamp = stamp
-            marker_msg.ns = "waypoints"
-            marker_msg.id = i
-            marker_msg.type = Marker.SPHERE
-            marker_msg.action = Marker.ADD
-            marker_msg.pose.position.x = wp[0]
-            marker_msg.pose.position.y = wp[1]
-            marker_msg.pose.position.z = wp[2]
-            marker_msg.pose.orientation.w = 1.0
-            marker_msg.scale.x = 0.1
-            marker_msg.scale.y = 0.1
-            marker_msg.scale.z = 0.1
-            marker_msg.color.a = 1.0
-            marker_msg.color.r = 0.0
-            marker_msg.color.g = 1.0
-            marker_msg.color.b = 0.0
-            marker_array_msg.markers.append(marker_msg)
-        self.waypoint_markers_pub.publish(marker_array_msg)
-
-    def clear_waypoint_markers(self):
-        marker_array_msg = MarkerArray()
-        stamp = rospy.Time.now()
-        marker_msg = Marker()
-        marker_msg.header.frame_id = self.tag_map_frame
-        marker_msg.header.stamp = stamp
-        marker_msg.ns = "waypoints"
-        marker_msg.id = 0
-        marker_msg.action = Marker.DELETEALL
-        marker_array_msg.markers.append(marker_msg)
-        self.waypoint_markers_pub.publish(marker_array_msg)
+            pose_msg = PoseStamped()
+            pose_msg.header.frame_id = self.tag_map_frame
+            pose_msg.header.stamp = rospy.Time.now()
+            pose_msg.pose.position.x = wp[0]
+            pose_msg.pose.position.y = wp[1]
+            pose_msg.pose.position.z = wp[2]
+            path_msg.poses.append(pose_msg)
+        self.waypoint_path_viz_pub.publish(path_msg)
 
 
 if __name__ == "__main__":

@@ -8,6 +8,6 @@ tag_map_frame_name: tag_map
 odom_sub_topic: /state_estimator/pose_in_odom
 goal_sub_topic: /tag_map_waypoint
 waypoint_pub_topic: /mp_waypoint
-waypoint_marker_pub_topic: /pose_graph_waypoint_markers
+waypoint_path_viz_pub_topic: /pose_graph_waypoint_markers
 
 reached_waypoint_tolerance: 0.2
