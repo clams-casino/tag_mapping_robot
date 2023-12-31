@@ -11,7 +11,6 @@ from geometry_msgs.msg import (
     PointStamped,
     PoseStamped,
     PoseWithCovarianceStamped,
-    PointCloud2,
 )
 from nav_msgs.msg import Path
 from sensor_msgs.msg import PointCloud2
