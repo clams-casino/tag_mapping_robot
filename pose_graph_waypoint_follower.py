@@ -62,6 +62,18 @@ class PoseGraphWaypointFollower:
         # Load pose graph
         self.pose_graph = PoseGraph.load(params["pose_graph_path"])
 
+        self.pgn_array = np.zeros(
+            len(self.pose_graph.nodes),
+            dtype=[
+                ("x", np.float32),
+                ("y", np.float32),
+                ("z", np.float32),
+            ],
+        )
+        self.pgn_array["x"] = self.pose_graph.nodes[:, 0]
+        self.pgn_array["y"] = self.pose_graph.nodes[:, 1]
+        self.pgn_array["z"] = self.pose_graph.nodes[:, 2]
+
         # Store list of waypoints of the current path
         self.waypoint_buffer = WaypointBuffer([])
 
@@ -281,7 +293,7 @@ class PoseGraphWaypointFollower:
     def refresh_pose_graph_nodes_viz(self, event):
         self.pose_graph_nodes_viz_pub.publish(
             array_to_pointcloud2(
-                self.pose_graph.nodes,
+                self.pgn_array,
                 stamp=rospy.Time.now(),
                 frame_id=self.tag_map_frame,
             )
