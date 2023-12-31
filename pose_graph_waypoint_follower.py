@@ -165,12 +165,11 @@ class PoseGraphWaypointFollower:
         if self.goal_reached:
             return
 
-        if (
-            np.linalg.norm(
-                (self.current_loc_tag_map - self.current_waypoint_tag_map)[:2] # only consider distance in x and y
-            )
-            < self.params["reached_waypoint_tolerance"]
-        ):
+        dist_to_current_waypoint = np.linalg.norm(
+            # only consider distance in x and y
+            (self.current_loc_tag_map - self.current_waypoint_tag_map)[:2]
+        )
+        if dist_to_current_waypoint < self.params["reached_waypoint_tolerance"]:
             # remove the reached waypoint marker from rviz
             self.clear_waypoint_markers()
             self.publish_waypoint_markers(self.waypoint_buffer.waypoints)
