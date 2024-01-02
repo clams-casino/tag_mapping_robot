@@ -1,16 +1,72 @@
 #!/usr/bin/python3
 
+import argparse
 import numpy as np
+
 import rospy
 import tf
-from tf.transformations import quaternion_matrix, quaternion_from_matrix, translation_matrix, translation_from_matrix
+from tf.transformations import (
+    quaternion_matrix,
+    quaternion_from_matrix,
+    translation_matrix,
+    translation_from_matrix,
+)
 import tf2_ros
 import geometry_msgs.msg
 
 
+""" START OF of definitions """
 MAP_FRAME_NAME = "map"
-TAG_FRAME_NAME = "tag"
 TAG_MAP_FRAME_NAME = "tag_map"
+
+# fmt: off
+# stores transform from the april tag to the tag map frame
+TAG_CALIBRATIONS = {
+    "tag_0": np.array(
+        [
+            [ 0, 0, -1, 0],
+            [-1, 0,  0, 0],
+            [ 0, 1,  0, 0],
+            [ 0, 0,  0, 1],
+        ]
+        
+    ),
+    "tag_1": np.array(
+        [
+            [-0.008594831, 0.029007451, 0.999542244, -18.480030055],
+            [ 0.999899035, 0.011062191, 0.008918931,   2.195683623],
+            [-0.011315843, 0.999517982, 0.028909445,   0.048892966],
+            [ 0,           0,           0,             1          ],
+        ]
+    ),
+    "tag_2": np.array(
+        [
+            [ 0.999898036, -0.007735447, -0.012003354, -6.507963383],
+            [-0.011841968,  0.020581819, -0.999718039, -5.083118818],
+            [ 0.007980317,  0.999758247,  0.020488118,  0.531296805],
+            [ 0,            0,            0,            1          ],
+        ]
+    ),
+    "tag_3": np.array(
+        [
+            [ 0.000453336, -0.001409876,  0.999998903, -42.286504164],
+            [ 0.999983617,  0.005706876, -0.000445283,  -6.869720079],
+            [-0.005706242,  0.999982722,  0.00141244,   -0.778408466],
+            [ 0,            0,            0,             1          ],
+        ]
+    ),
+    "tag_5": np.array(
+        [
+            [ 0.007563754, -0.013764611,  0.999876655, -28.237872945],
+            [ 0.999900326,  0.012025085, -0.007398392,  -1.050738206],
+            [-0.011921766,  0.999832952,  0.013854194,  -0.225190027],
+            [ 0,            0,            0,             1          ],
+        ]
+    ),
+}
+# fmt: on
+
+""" END OF of definitions """
 
 
 def lookupLatestTransform(listener, target_frame, source_frame):
@@ -49,32 +105,30 @@ def generateTransformStampedMsg(trans, quat, target_frame, source_frame):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--tag_name", choices=TAG_CALIBRATIONS.keys(), required=True)
+    args = parser.parse_args()
+
+    at_frame_name = args.tag_name
+    tag_map_to_at = np.linalg.inv(TAG_CALIBRATIONS[args.tag_name])
+
     rospy.init_node("tag_map_robot_calibration")
     tf_listener = tf.TransformListener()
 
     """ TF from tag map to map frame """
-    tag_to_map_trans, tag_to_map_quat = lookupLatestTransform(
-        tf_listener, MAP_FRAME_NAME, TAG_FRAME_NAME
+    at_to_map_trans, at_to_map_quat = lookupLatestTransform(
+        tf_listener, MAP_FRAME_NAME, at_frame_name
     )
 
-    tag_map_to_map_trans = tag_to_map_trans
+    at_to_map = quaternion_matrix(at_to_map_quat)
+    at_to_map[:3, -1] = at_to_map_trans
 
-    tag_map_to_tag_R = np.array([
-        [0, -1, 0, 0],
-        [0, 0, 1, 0],
-        [-1, 0, 0, 0],
-        [0, 0, 0, 1],
-    ])
+    tag_map_to_map = at_to_map @ tag_map_to_at
 
-    tag_to_map_R = quaternion_matrix(tag_to_map_quat)
+    tag_map_to_map_trans = tag_map_to_map[:3, -1]
+    tag_map_to_map_quat = quaternion_from_matrix(tag_map_to_map)
 
-    tag_map_to_map_quat = quaternion_from_matrix(
-        tag_to_map_R @ tag_map_to_tag_R
-    )
-    
-
-    # print("tag_map_to_map_trans: ", tag_map_to_map_trans)
-    # print("tag_map_to_map_quat: ", tag_map_to_map_quat)
+    # print("tag map to map:\n", tag_map_to_map)
 
     """ Publish static transform """
     print("\n\nPublishing static TFs")
