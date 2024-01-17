@@ -14,6 +14,7 @@ from geometry_msgs.msg import (
 )
 from nav_msgs.msg import Path
 from sensor_msgs.msg import PointCloud2
+from sensor_msgs.msg import Joy
 
 from pose_graph import PoseGraph
 
@@ -128,6 +129,9 @@ class PoseGraphWaypointFollower:
 
         self.current_waypoint_pub = rospy.Publisher(
             params["waypoint_pub_topic"], PointStamped, queue_size=1
+        )
+        self.simulated_joy_pub = rospy.Publisher(
+            params["joy_pub_topic"], Joy, queue_size=1
         )
 
         self.waypoint_path_viz_pub = rospy.Publisher(
@@ -268,8 +272,22 @@ class PoseGraphWaypointFollower:
                 1,
             ]
         )
+
+        # publish simulated joystick command before publishing waypoint
+        joy_msg = Joy()
+        joy_msg.header.stamp = rospy.Time.now()
+        joy_msg.header.frame_id = "waypoint_tool"
+        joy_msg.axes = [
+          0, 0, -1.0, 0, 1.0, 1.0, 0, 0,
+        ]
+        joy_msg.buttons = [
+          0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0,
+        ]
+        self.simulated_joy_pub.publish(joy_msg)
+
+        # publish the actual waypoint
         point_stamped_msg = PointStamped()
-        point_stamped_msg.header.stamp = rospy.Time.now()
+        point_stamped_msg.header.stamp = joy_msg.header.stamp
         point_stamped_msg.header.frame_id = self.odom_frame
         point_stamped_msg.point.x = waypoint_odom[0]
         point_stamped_msg.point.y = waypoint_odom[1]
