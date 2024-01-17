@@ -1,5 +1,5 @@
-# pose_graph_path: /home/kaixqu/mike/lab_pose_graphs/v1/pose_graph_inflation-0.0
-pose_graph_path: /home/kaixqu/mike/lab_pose_graphs/v1/pose_graph_inflation-0.2
+pose_graph_path: /home/rsl_admin/lab_datasets/19-11-2023/pose_graph_inflation-0.0
+# pose_graph_path: /home/rsl_admin/lab_datasets/19-11-2023/pose_graph_inflation-0.2
 
 odom_frame_name: odom
 map_frame_name: map
